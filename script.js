@@ -176,9 +176,10 @@ function initAppLogic() {
         });
     });
 
-    // bind apply-days and create-plan
+    // bind apply-days and save-plan
     const applyBtn = document.getElementById('apply-days-btn');
-    const createBtn = document.getElementById('create-plan-btn');
+    const savePlanBtn = document.getElementById('save-plan-btn');
+    
     if (applyBtn) {
         applyBtn.addEventListener('click', () => {
             const daysInput = document.getElementById('days-input');
@@ -188,18 +189,43 @@ function initAppLogic() {
             for (let i = 1; i <= days; i++) draftPlan.push({ day: i, exercises: [], selectedSetIndex: -1 });
             activeEditor = 'creator';
             renderCreator();
+            // Show save button when plan is created
+            if (savePlanBtn) savePlanBtn.style.display = 'inline-block';
         });
     }
-    if (createBtn) {
-        createBtn.addEventListener('click', () => {
-            if (!Array.isArray(draftPlan) || draftPlan.length === 0) { alert('Najpierw ustaw liczbę dni i dodaj ćwiczenia (Użyj "Zastosuj dni").'); return; }
+    
+    if (savePlanBtn) {
+        savePlanBtn.addEventListener('click', async () => {
+            if (!Array.isArray(draftPlan) || draftPlan.length === 0) { 
+                alert('Najpierw ustaw liczbę dni (Użyj "Zastosuj dni").'); 
+                return; 
+            }
+            
+            // Check if at least one exercise was added
+            const hasExercises = draftPlan.some(day => day.exercises && day.exercises.length > 0);
+            if (!hasExercises) {
+                alert('Dodaj przynajmniej jedno ćwiczenie do planu przed zapisaniem.');
+                return;
+            }
+            
             currentPlan = JSON.parse(JSON.stringify(draftPlan));
             currentPlan.forEach(d => { if (typeof d.selectedSetIndex === 'undefined') d.selectedSetIndex = -1; });
-            // persist
-            savePlan();
+            
+            // Save to Supabase
+            await savePlan();
             renderSavedPlan();
+            
+            // Switch to saved tab
             const savedTab = document.getElementById('tab-saved');
             if (savedTab) savedTab.click();
+            
+            // Show success message
+            const toast = document.getElementById('toast');
+            if (toast) {
+                toast.textContent = 'Plan zapisany!';
+                toast.style.display = 'block';
+                setTimeout(() => { toast.style.display = 'none'; }, 2000);
+            }
         });
     }
 
@@ -326,6 +352,7 @@ function openExerciseForm({ mode = 'add', dayIndex = 0, exercise = null } = {}) 
 
     formModal.style.display = 'flex';
     const titleEl = formModal.querySelector('.form-title');
+    const muscleGroupSelect = document.getElementById('ex-muscle-group');
     const nameSelect = document.getElementById('ex-name');
     const seriesInput = document.getElementById('ex-series');
     const repsInput = document.getElementById('ex-reps');
@@ -336,33 +363,90 @@ function openExerciseForm({ mode = 'add', dayIndex = 0, exercise = null } = {}) 
 
     titleEl.textContent = mode === 'edit' ? 'Edytuj ćwiczenie' : 'Dodaj ćwiczenie';
 
-    if (nameSelect && document.getElementById('exercise-list')) {
-        if (nameSelect.options.length === 0) {
-            let names = Array.from(document.querySelectorAll('#exercise-list li')).map(li => li.textContent.trim()).filter(Boolean);
-            if (names.length === 0) {
-                const raw = Array.from(document.querySelectorAll('#exercise-list div'))
-                    .map(d => d.textContent.replace(/^[^:]+:\s*/,'').split(',').map(s => s.trim()))
-                    .flat();
-                names = raw.filter(Boolean);
+    // Build exercise database from HTML
+    const exercisesByMuscleGroup = {};
+    if (document.getElementById('exercise-list')) {
+        const sections = document.querySelectorAll('#exercise-list .exercise-section');
+        sections.forEach(section => {
+            const muscleGroup = section.getAttribute('data-section');
+            const exercises = Array.from(section.querySelectorAll('li')).map(li => li.textContent.trim()).filter(Boolean);
+            if (muscleGroup && exercises.length > 0) {
+                exercisesByMuscleGroup[muscleGroup] = exercises;
             }
-            const unique = [...new Set(names)].filter(Boolean);
-            unique.forEach(ex => { const o = document.createElement('option'); o.value = ex; o.textContent = ex; nameSelect.appendChild(o); });
+        });
+    }
+
+    // Handle muscle group change
+    function updateExerciseList() {
+        const selectedMuscleGroup = muscleGroupSelect.value;
+        nameSelect.innerHTML = '';
+        
+        if (!selectedMuscleGroup) {
+            const defaultOpt = document.createElement('option');
+            defaultOpt.value = '';
+            defaultOpt.textContent = '-- Najpierw wybierz partię --';
+            nameSelect.appendChild(defaultOpt);
+            nameSelect.disabled = true;
+        } else {
+            nameSelect.disabled = false;
+            const exercises = exercisesByMuscleGroup[selectedMuscleGroup] || [];
+            exercises.forEach(ex => {
+                const opt = document.createElement('option');
+                opt.value = ex;
+                opt.textContent = ex;
+                nameSelect.appendChild(opt);
+            });
         }
     }
 
+    // Attach event listener for muscle group change
+    if (muscleGroupSelect) {
+        muscleGroupSelect.onchange = updateExerciseList;
+    }
+
     if (exercise) {
+        // Find which muscle group contains this exercise
+        let foundMuscleGroup = '';
+        for (const [muscleGroup, exercises] of Object.entries(exercisesByMuscleGroup)) {
+            if (exercises.includes(exercise.name)) {
+                foundMuscleGroup = muscleGroup;
+                break;
+            }
+        }
+        
+        if (foundMuscleGroup) {
+            muscleGroupSelect.value = foundMuscleGroup;
+        } else {
+            muscleGroupSelect.value = '';
+        }
+        
+        updateExerciseList();
+        
+        // Set exercise name
         const name = exercise.name || '';
         let found = false;
         for (let i = 0; i < nameSelect.options.length; i++) {
-            if (nameSelect.options[i].value === name) { nameSelect.selectedIndex = i; found = true; break; }
+            if (nameSelect.options[i].value === name) { 
+                nameSelect.selectedIndex = i; 
+                found = true; 
+                break; 
+            }
         }
-        if (!found && name) { const o = document.createElement('option'); o.value = name; o.textContent = name; nameSelect.appendChild(o); nameSelect.selectedIndex = nameSelect.options.length - 1; }
+        if (!found && name) { 
+            const o = document.createElement('option'); 
+            o.value = name; 
+            o.textContent = name; 
+            nameSelect.appendChild(o); 
+            nameSelect.selectedIndex = nameSelect.options.length - 1; 
+        }
+        
         seriesInput.value = exercise.series || '';
         repsInput.value = exercise.reps || '';
         increaseInput.value = exercise.increase || '';
         weightInput.value = exercise.weight || '';
     } else {
-        if (nameSelect && nameSelect.options.length > 0) nameSelect.selectedIndex = 0;
+        muscleGroupSelect.value = '';
+        updateExerciseList();
         seriesInput.value = '';
         repsInput.value = '';
         increaseInput.value = '';

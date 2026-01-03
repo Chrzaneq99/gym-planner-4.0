@@ -81,6 +81,23 @@ button:hover {
   border-radius: 8px;
 }
 
+/* Force yellow color in all inputs and selects */
+input[type=number], select, textarea {
+  color: var(--text-solid) !important;
+  -webkit-text-fill-color: var(--text-solid) !important;
+}
+
+/* Remove number input arrows */
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type=number] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
 .set-select:focus, input:focus, select:focus, textarea:focus {
   outline: none;
   box-shadow: 0 0 0 4px rgba(255,110,30,0.08);
@@ -161,11 +178,14 @@ button:hover {
   /* fallback style; inline styles in index.html may override this, so we also update that block */
   background: rgba(255,140,0,0.12);
   border: 1px solid rgba(255,140,0,0.2);
-  color: var(--text-solid);
+  color: var(--text-solid) !important;
+  -webkit-text-fill-color: var(--text-solid) !important;
+  border-radius: 4px !important; /* square buttons */
 }
 .series-controls .series-input {
   background: #111216;
-  color: var(--text-solid);
+  color: var(--text-solid) !important;
+  -webkit-text-fill-color: var(--text-solid) !important;
   border: 1px solid rgba(255,140,0,0.06);
 }
 

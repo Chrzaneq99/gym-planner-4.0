@@ -10,38 +10,24 @@
     .modal { display: none; position: fixed; left: 0; top: 0; right: 0; bottom: 0; align-items: center; justify-content: center; background: rgba(0,0,0,0.4); }
     .modal .modal-content { background: #fff; padding: 12px; border-radius: 8px; min-width: 300px; }
     .toast { display: none; position: fixed; right: 12px; bottom: 12px; background: #333; color: #fff; padding: 8px 12px; border-radius: 6px; }
-    /* Style weight inputs (narrow, centered) and remove native number arrows */
+    /* Style weight inputs (narrow, centered) */
     .series-input {
       width: 64px;
       box-sizing: border-box;
       text-align: center;
       margin: 0 auto;
       padding: 6px;
-    }
-    /* remove number input arrows - WebKit */
-    .series-input::-webkit-outer-spin-button,
-    .series-input::-webkit-inner-spin-button {
-      -webkit-appearance: none;
-      margin: 0;
-    }
-    /* Firefox */
-    .series-input[type=number] {
-      -moz-appearance: textfield;
-      appearance: textfield;
+      color: var(--text-solid) !important;
+      -webkit-text-fill-color: var(--text-solid) !important;
     }
 
     /* Narrow and center Days input in creator */
     #days-input {
       width: 64px;
       text-align: center;
+      color: var(--text-solid) !important;
+      -webkit-text-fill-color: var(--text-solid) !important;
     }
-    /* hide arrows on days input too */
-    #days-input::-webkit-outer-spin-button,
-    #days-input::-webkit-inner-spin-button {
-      -webkit-appearance: none;
-      margin: 0;
-    }
-  #days-input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
     /* Center table cells in saved plan */
     #saved-plan .day-block table td,
@@ -62,10 +48,12 @@
       padding: 0;
       border: 1px solid rgba(255,140,0,0.12);
       background: rgba(255,255,255,0.03); /* match edit button neutral look */
-      color: var(--text-solid);
-      border-radius: 4px;
+      color: #ffd54f !important;
+      -webkit-text-fill-color: #ffd54f !important;
+      border-radius: 4px; /* square corners */
       cursor: pointer;
-      font-size: 18px;
+      font-size: 20px;
+      font-weight: bold;
       line-height: 1;
       display: inline-flex;
       align-items: center;
@@ -116,10 +104,10 @@
 
       <div class="content" style="flex:1;">
         <section data-tab="create">
-          <div id="create-section" style="display:flex; gap:8px; align-items:center; margin-bottom:12px;">
+          <div id="create-section" style="display:flex; gap:8px; align-items:center; margin-bottom:12px; flex-wrap:wrap;">
             <label>Dni: <input id="days-input" type="number" min="1" max="7" value="3" style="width:60px; margin-left:6px;"/></label>
               <button id="apply-days-btn">Zastosuj dni</button>
-              <button id="create-plan-btn">Utwórz plan</button>
+              <button id="save-plan-btn" style="display:none; background:linear-gradient(90deg,#28a745,#20c997);">Zapisz plan</button>
           </div>
           <!-- exercise-list moved to its own tab -->
           <div id="training-plan"></div>
@@ -219,13 +207,27 @@
     <div class="modal-content">
       <h3 class="form-title">Dodaj ćwiczenie</h3>
       <div style="text-align:left; margin-top:10px;">
-        <label>Nazwa (wybierz z listy):<br/>
-          <select id="ex-name" style="width:100%; padding:6px; margin-top:4px;"></select>
+        <label>Partia mięśniowa:<br/>
+          <select id="ex-muscle-group" style="width:100%; padding:6px; margin-top:4px; color:var(--text-solid);">
+            <option value="">-- Wybierz partię --</option>
+            <option value="Klatka piersiowa">Klatka piersiowa</option>
+            <option value="Plecy">Plecy</option>
+            <option value="Triceps">Triceps</option>
+            <option value="Nogi">Nogi</option>
+            <option value="Pośladki">Pośladki</option>
+            <option value="Biceps">Biceps</option>
+            <option value="Barki">Barki</option>
+          </select>
         </label>
-        <label>Ile serii:<br/><input id="ex-series" type="number" min="1" style="width:100%; padding:6px; margin-top:4px;"/></label>
-        <label>Ile powtórzeń:<br/><input id="ex-reps" type="number" min="1" style="width:100%; padding:6px; margin-top:4px;"/></label>
+        <label>Nazwa ćwiczenia:<br/>
+          <select id="ex-name" style="width:100%; padding:6px; margin-top:4px; color:var(--text-solid);" disabled>
+            <option value="">-- Najpierw wybierz partię --</option>
+          </select>
+        </label>
+        <label>Ile serii:<br/><input id="ex-series" type="number" min="1" style="width:100%; padding:6px; margin-top:4px; color:var(--text-solid);"/></label>
+        <label>Ile powtórzeń:<br/><input id="ex-reps" type="number" min="1" style="width:100%; padding:6px; margin-top:4px; color:var(--text-solid);"/></label>
         <label>Przyrost:<br/>
-          <select id="ex-increase" style="width:100%; padding:6px; margin-top:4px;">
+          <select id="ex-increase" style="width:100%; padding:6px; margin-top:4px; color:var(--text-solid);">
             <option value="2">2</option>
             <option value="2.5">2.5</option>
             <option value="5">5</option>
@@ -233,9 +235,9 @@
         </label>
         <label style="display:block; margin-top:8px;">Ciężar (kg):<br/>
           <div style="display:flex; gap:8px; align-items:center; margin-top:4px;">
-            <button id="ex-weight-decr" type="button" style="width:36px;">−</button>
-            <input id="ex-weight" type="number" min="0" step="0.5" style="flex:1; padding:6px;"/>
-            <button id="ex-weight-incr" type="button" style="width:36px;">+</button>
+            <button id="ex-weight-decr" type="button" style="width:36px; height:36px; border-radius:4px; font-size:20px; font-weight:bold; color:#ffd54f; -webkit-text-fill-color:#ffd54f;">−</button>
+            <input id="ex-weight" type="number" min="0" step="0.5" style="flex:1; padding:6px; color:var(--text-solid);"/>
+            <button id="ex-weight-incr" type="button" style="width:36px; height:36px; border-radius:4px; font-size:20px; font-weight:bold; color:#ffd54f; -webkit-text-fill-color:#ffd54f;">+</button>
           </div>
         </label>
       </div>
