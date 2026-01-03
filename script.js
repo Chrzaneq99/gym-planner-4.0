@@ -65,18 +65,22 @@ function loadPlanFromLocalStorage() {
 
 async function savePlan() {
     const toast = document.getElementById('toast');
-    // Always save to localStorage first
-    savePlanToLocalStorage();
     
     try {
         if (currentUser && currentUser.user_metadata && currentUser.user_metadata.username) {
             const username = currentUser.user_metadata.username;
             const payload = { plan: currentPlan, config: planConfig };
+            // Save to Supabase first
             await savePlanToSupabase(username, payload);
+            // Then update localStorage to match
+            savePlanToLocalStorage();
             if (toast) { toast.style.display = 'block'; setTimeout(() => { toast.style.display = 'none'; }, 1000); }
             renderSavedPlan();
+            console.log('Plan saved to Supabase and localStorage');
         } else {
             console.warn('No currentUser - plan saved only to localStorage.');
+            // Save to localStorage as fallback
+            savePlanToLocalStorage();
             // Show toast even when not logged in
             if (toast) { toast.style.display = 'block'; setTimeout(() => { toast.style.display = 'none'; }, 1000); }
         }
@@ -172,10 +176,13 @@ function initAuthUI() {
                     currentPlan = data.plan || [];
                     planConfig = data.config || planConfig;
                     currentPlan.forEach(d => { if (typeof d.selectedSetIndex === 'undefined') d.selectedSetIndex = -1; });
+                    console.log('Plan loaded from Supabase:', currentPlan.length, 'days');
                 } else {
+                    console.log('No plan in Supabase, checking localStorage');
                     // If no data in Supabase, try loading from localStorage
                     if (!loadPlanFromLocalStorage()) {
                         currentPlan = [];
+                        console.log('No plan found anywhere, starting fresh');
                     }
                 }
             } catch (e) {
@@ -187,7 +194,12 @@ function initAuthUI() {
             }
             draftPlan = [];
             activeEditor = 'creator';
-            renderCreator();
+            // Clear creator view - don't show old plan
+            const planDiv = document.getElementById('training-plan');
+            if (planDiv) planDiv.innerHTML = '';
+            // Hide save button until user clicks "Zastosuj dni"
+            const savePlanBtn = document.getElementById('save-plan-btn');
+            if (savePlanBtn) savePlanBtn.style.display = 'none';
             renderSavedPlan();
             // switch to saved tab when signed in
             const savedTab = document.getElementById('tab-saved'); if (savedTab) savedTab.click();
@@ -589,7 +601,7 @@ function renderSavedPlan() {
             titleRow.appendChild(editBtn); wrapper.appendChild(titleRow);
             const table = document.createElement('table'); table.style.width = '100%'; table.style.borderCollapse = 'collapse'; table.style.marginTop = '8px'; const tr1 = document.createElement('tr'); const td1 = document.createElement('td'); td1.colSpan = ex.series; td1.style.textAlign = 'center'; td1.style.padding = '6px'; td1.className = 'reps-cell'; td1.textContent = `Powtórzenia: ${ex.reps}`; tr1.appendChild(td1); table.appendChild(tr1);
             const tr2 = document.createElement('tr'); for (let s = 1; s <= ex.series; s++) { const th = document.createElement('th'); th.style.padding = '6px'; th.style.borderTop = '1px solid #e0e0e0'; th.textContent = `Seria ${s}`; tr2.appendChild(th); } table.appendChild(tr2);
-            const tr3 = document.createElement('tr'); for (let s = 0; s < ex.series; s++) { const td = document.createElement('td'); td.style.padding = '6px'; td.style.textAlign = 'center'; td.style.borderTop = '1px solid #e0e0e0'; const input = document.createElement('input'); input.type = 'number'; input.step = '0.5'; input.min = '0'; input.className = 'series-input'; input.value = (typeof ex.weights[s] !== 'undefined') ? ex.weights[s] : (ex.weight || 0); const controlsDiv = document.createElement('div'); controlsDiv.className = 'series-controls'; const dec = document.createElement('button'); dec.textContent = '−'; const inc = document.createElement('button'); inc.textContent = '+'; dec.addEventListener('click', () => { const step = parseFloat(ex.increase) || 1; ex.weights[s] = Math.round(Math.max(0, (parseFloat(ex.weights[s] || 0) - step)) * 100) / 100; ex.weight = ex.weights[0]; savePlan(); }); inc.addEventListener('click', () => { const step = parseFloat(ex.increase) || 1; ex.weights[s] = Math.round(((parseFloat(ex.weights[s] || 0) + step)) * 100) / 100; ex.weight = ex.weights[0]; savePlan(); }); input.addEventListener('change', () => { let v = parseFloat(input.value); if (isNaN(v) || v < 0) v = 0; ex.weights[s] = Math.round(v * 100) / 100; ex.weight = ex.weights[0]; savePlan(); }); controlsDiv.appendChild(dec); controlsDiv.appendChild(input); controlsDiv.appendChild(inc); td.appendChild(controlsDiv); tr3.appendChild(td); }
+            const tr3 = document.createElement('tr'); for (let s = 0; s < ex.series; s++) { const td = document.createElement('td'); td.style.padding = '6px'; td.style.textAlign = 'center'; td.style.borderTop = '1px solid #e0e0e0'; const input = document.createElement('input'); input.type = 'number'; input.step = '0.5'; input.min = '0'; input.className = 'series-input'; input.value = (typeof ex.weights[s] !== 'undefined') ? ex.weights[s] : (ex.weight || 0); const controlsDiv = document.createElement('div'); controlsDiv.className = 'series-controls'; const dec = document.createElement('button'); dec.textContent = '−'; const inc = document.createElement('button'); inc.textContent = '+'; dec.addEventListener('click', () => { const step = parseFloat(ex.increase) || 1; ex.weights[s] = Math.round(Math.max(0, (parseFloat(ex.weights[s] || 0) - step)) * 100) / 100; ex.weight = ex.weights[0]; savePlan(); renderSavedPlan(); }); inc.addEventListener('click', () => { const step = parseFloat(ex.increase) || 1; ex.weights[s] = Math.round(((parseFloat(ex.weights[s] || 0) + step)) * 100) / 100; ex.weight = ex.weights[0]; savePlan(); renderSavedPlan(); }); input.addEventListener('change', () => { let v = parseFloat(input.value); if (isNaN(v) || v < 0) v = 0; ex.weights[s] = Math.round(v * 100) / 100; ex.weight = ex.weights[0]; savePlan(); renderSavedPlan(); }); controlsDiv.appendChild(dec); controlsDiv.appendChild(input); controlsDiv.appendChild(inc); td.appendChild(controlsDiv); tr3.appendChild(td); }
             table.appendChild(tr3); wrapper.appendChild(table); content.appendChild(wrapper);
         });
         detailsEl.appendChild(content); container.appendChild(detailsEl);

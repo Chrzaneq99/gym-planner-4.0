@@ -22,7 +22,8 @@ async function loadLocalOverride() {
       console.info('Loaded supabase.config.js override.');
     }
   } catch (e) {
-    // Ignore errors — missing file is expected in many setups
+    // Ignore errors — missing file is expected in many setups (e.g., GitHub Pages)
+    console.log('No local config override (this is normal for production)');
   }
 }
 
@@ -105,7 +106,7 @@ export async function savePlanToSupabase(username, planObj) {
   try {
     const { error } = await _supabase
       .from('user_plans')
-      .upsert({ username: username, plan_data: planObj });
+      .upsert({ username: username, plan_data: planObj }, { onConflict: 'username' });
     if (error) throw error;
     return true;
   } catch (err) {
