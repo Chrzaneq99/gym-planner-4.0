@@ -32,8 +32,42 @@ function showLogout(show) {
     wrap.style.display = show ? '' : 'none';
 }
 
+// Save plan to localStorage
+function savePlanToLocalStorage() {
+    try {
+        const payload = { plan: currentPlan, config: planConfig };
+        localStorage.setItem('gymPlanData', JSON.stringify(payload));
+        console.log('Plan saved to localStorage');
+    } catch (err) {
+        console.error('Failed to save to localStorage', err);
+    }
+}
+
+// Load plan from localStorage
+function loadPlanFromLocalStorage() {
+    try {
+        const data = localStorage.getItem('gymPlanData');
+        if (data) {
+            const parsed = JSON.parse(data);
+            if (parsed.plan) {
+                currentPlan = parsed.plan;
+                planConfig = parsed.config || { mixEnabled: false };
+                currentPlan.forEach(d => { if (typeof d.selectedSetIndex === 'undefined') d.selectedSetIndex = -1; });
+                console.log('Plan loaded from localStorage');
+                return true;
+            }
+        }
+    } catch (err) {
+        console.error('Failed to load from localStorage', err);
+    }
+    return false;
+}
+
 async function savePlan() {
     const toast = document.getElementById('toast');
+    // Always save to localStorage first
+    savePlanToLocalStorage();
+    
     try {
         if (currentUser && currentUser.user_metadata && currentUser.user_metadata.username) {
             const username = currentUser.user_metadata.username;
@@ -42,7 +76,9 @@ async function savePlan() {
             if (toast) { toast.style.display = 'block'; setTimeout(() => { toast.style.display = 'none'; }, 1000); }
             renderSavedPlan();
         } else {
-            console.warn('No currentUser - plan not saved to Supabase.');
+            console.warn('No currentUser - plan saved only to localStorage.');
+            // Show toast even when not logged in
+            if (toast) { toast.style.display = 'block'; setTimeout(() => { toast.style.display = 'none'; }, 1000); }
         }
     } catch (err) {
         console.error('savePlan failed', err);
@@ -137,11 +173,17 @@ function initAuthUI() {
                     planConfig = data.config || planConfig;
                     currentPlan.forEach(d => { if (typeof d.selectedSetIndex === 'undefined') d.selectedSetIndex = -1; });
                 } else {
-                    currentPlan = [];
+                    // If no data in Supabase, try loading from localStorage
+                    if (!loadPlanFromLocalStorage()) {
+                        currentPlan = [];
+                    }
                 }
             } catch (e) {
                 console.error('Failed to load plan from Supabase', e);
-                currentPlan = [];
+                // Fallback to localStorage if Supabase fails
+                if (!loadPlanFromLocalStorage()) {
+                    currentPlan = [];
+                }
             }
             draftPlan = [];
             activeEditor = 'creator';
@@ -556,6 +598,9 @@ function renderSavedPlan() {
 
 // initialization on DOM ready
 window.addEventListener('DOMContentLoaded', async () => {
+    // Load plan from localStorage at startup
+    loadPlanFromLocalStorage();
+    
     // initially hide app until auth state is determined
     showAppRoot(false);
     showLogout(false);
