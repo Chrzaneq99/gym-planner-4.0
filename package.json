@@ -1,0 +1,11 @@
+{
+  "name": "gym-app-tests",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test:syntax": "node ./tools/parse-js.js"
+  },
+  "dependencies": {
+    "acorn": "^8.8.2"
+  }
+}
